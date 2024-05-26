@@ -1,23 +1,22 @@
 import './App.css';
-import { Quib, Transcriber, useVad } from "@fadedrifleman/web-sdk"
-// import Transcriber from './classes/dgVad';
+import { Quib, Transcriber, useVad } from "@fadedrifleman/web-sdk";
 import { v4 as uuidv4 } from "uuid";
-import { useEffect, useState } from 'react';
-
+import { useEffect, useState, useRef } from 'react';
+import { useQueue } from "@uidotdev/usehooks";
 
 function App() {
+  const transcriberRef = useRef(null);
+  const [buttonClicked, setButtonClicked] = useState(false);
+  const { add, remove, first, size, queue, clear } = useQueue([]);
+  const [uMedia, setUMedia] = useState(null);
 
-
-
-
-  // const { add, remove, first, size, queue, clear } = useQueue([]);
-
-  //const quib = new Quib({ host: 'quibbleai.io:8888', uid: uuidv4() });
-  //const transcriber = new Transcriber({ apiKey: '656759acdbd9f56cf70b91f71f38cd2eddacf5c4' });
-  const [uMedia, setUMedia] = useState(null)
-
-
-
+  useEffect(() => {
+    const transcriber = new Transcriber({ apiKey: '' });
+    transcriber.on('transcription', (text) => {
+      console.log(text);
+    });
+    transcriberRef.current = transcriber;
+  }, []);
 
   const { start, pause } = useVad({
     userMedia: uMedia,
@@ -29,29 +28,23 @@ function App() {
     },
   });
 
+  useEffect(() => {
+    if (buttonClicked) {
+      const quib = new Quib({ host: 'quibbleai.io:8888', uid: uuidv4() });
 
+      quib.on('connected', () => {
+        console.log('Connected to Quib');
+        quib.start();
+        quib.send('hello');
+      });
 
-  // transcriber.on('transcription', (text) => {
-  //   console.log(text)
-  // })
-  // quib.on('connected', () => {
-  //   console.log('Connected to Quib')
-  //   quib.start()
-  //   quib.send('hello')
-  // })
-
-  // quib.on('media', (data) => {
-  //   console.log(data)
-  // })
-
-
-
-
+      quib.on('media', (data) => {
+        console.log(data);
+      });
+    }
+  }, [buttonClicked]);
 
   async function microphone() {
-
-
-
     const userMedia = await navigator.mediaDevices.getUserMedia({
       audio: {
         noiseSuppression: true,
@@ -59,42 +52,27 @@ function App() {
       },
     });
 
-
-
     const microphone = new MediaRecorder(userMedia);
-    setUMedia(userMedia)
-
-    start()
-
-
-
+    setUMedia(userMedia);
 
     microphone.start(500);
+
     microphone.onstart = () => {
       console.log("Now Call Started.");
+      setButtonClicked(true);
     };
     microphone.ondataavailable = (e) => {
-      // add(e.data);
-      console.log(e.data)
-      //  transcriber.send(e.data)
+      console.log(e.data);
+      console.log('dataa');
 
-      // remove()
-
+      transcriberRef.current.send(e.data);
     };
-
   }
-
-  // useEffect(() => {
-
-  // }, [queue])
-
 
   return (
     <div className="App">
       <header className="App-header">
-
         <button onClick={microphone}>Start Call</button>
-
       </header>
     </div>
   );
